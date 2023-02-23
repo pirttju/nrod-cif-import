@@ -118,6 +118,7 @@ class Association:
         self.location = str_fmt(raw[37:44])
         self.base_location_suffix = int_fmt(raw[44:45])
         self.assoc_location_suffix = int_fmt(raw[45:46])
+        self.diagram_type = str_fmt(raw[46:47])
         self.association_type = str_fmt(raw[47:48])
         self.stp_indicator = str_fmt(raw[79:80])
 
@@ -339,6 +340,7 @@ def insert_associations(connection, data):
                 location,
                 base_location_suffix,
                 assoc_location_suffix,
+                diagram_type,
                 association_type,
                 stp_indicator
             )
@@ -353,6 +355,7 @@ def insert_associations(connection, data):
                 %(location)s,
                 %(base_location_suffix)s,
                 %(assoc_location_suffix)s,
+                %(diagram_type)s,
                 %(association_type)s,
                 %(stp_indicator)s
             );
@@ -367,24 +370,26 @@ def delete_associations(connection, associations):
             cursor.execute(
                 """
                 DELETE FROM nrod_association
-                WHERE main_train_uid = %s AND assoc_train_uid = %s AND
-                assoc_start_date = %s AND location = %s AND stp_indicator = %s;
+                WHERE main_train_uid = %s AND assoc_train_uid = %s AND assoc_start_date = %s
+                AND diagram_type = %s AND location = %s AND stp_indicator = %s;
             """,
                 (
                     a["main_train_uid"],
                     a["assoc_train_uid"],
                     a["assoc_start_date"],
+                    a["diagram_type"],
                     a["location"],
                     a["stp_indicator"],
                 ),
             )
             if cursor.rowcount == 0:
                 print(
-                    "Association {0} ({1}, {2}, {3}, {4}, {5}) affected 0 rows".format(
+                    "Association {0} ({1}, {2}, {3}, {4}, {5}, {6}) affected 0 rows".format(
                         a["transaction_type"],
                         a["main_train_uid"],
                         a["assoc_train_uid"],
                         a["assoc_start_date"],
+                        a["diagram_type"],
                         a["location"],
                         a["stp_indicator"],
                     )
