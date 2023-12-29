@@ -1,2 +1,2 @@
 # nrod-cif-import
-A tool for importing CIF schedule files into a PostgreSQL DB
+A tool for importing Network Rail's CIF schedules into a PostgreSQL DB
