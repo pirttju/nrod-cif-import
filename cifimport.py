@@ -259,7 +259,7 @@ def select_last_ref(connection):
     with connection.cursor() as cursor:
         cursor.execute(
             """SELECT current_file_reference
-            FROM nrod_header
+            FROM nrod.header
             WHERE update_indicator = %s
             ORDER BY date_of_extract DESC LIMIT 1;""",
             ["U"],
@@ -272,17 +272,17 @@ def select_last_ref(connection):
 
 def truncate_tables(connection):
     with connection.cursor() as cursor:
-        cursor.execute("TRUNCATE nrod_association;")
-        cursor.execute("TRUNCATE nrod_header;")
-        cursor.execute("DELETE FROM nrod_schedule WHERE is_vstp = FALSE;")
-        cursor.execute("TRUNCATE nrod_tiploc;")
+        cursor.execute("TRUNCATE nrod.association;")
+        cursor.execute("TRUNCATE nrod.header;")
+        cursor.execute("DELETE FROM nrod.schedule WHERE is_vstp = FALSE;")
+        cursor.execute("TRUNCATE nrod.tiploc;")
 
 
 def insert_header(connection, data):
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            INSERT INTO nrod_header VALUES (
+            INSERT INTO nrod.header VALUES (
                 %(file_mainframe_identity)s,
                 %(date_of_extract)s,
                 %(time_of_extract)s,
@@ -302,7 +302,7 @@ def insert_tiplocs(connection, data):
     with connection.cursor() as cursor:
         cursor.executemany(
             """
-            INSERT INTO nrod_tiploc VALUES (
+            INSERT INTO nrod.tiploc VALUES (
                 %(new_tiploc)s,
                 %(nalco)s,
                 %(check_char)s,
@@ -319,7 +319,7 @@ def insert_tiplocs(connection, data):
 def delete_tiplocs(connection, data):
     with connection.cursor() as cursor:
         for d in data:
-            cursor.execute("DELETE FROM nrod_tiploc WHERE tiploc_code = %(tiploc_code)s;", d)
+            cursor.execute("DELETE FROM nrod.tiploc WHERE tiploc_code = %(tiploc_code)s;", d)
             if cursor.rowcount == 0:
                 print("Tiploc Delete ({0}) affected 0 rows".format(d["tiploc_code"]))
 
@@ -328,7 +328,7 @@ def insert_associations(connection, data):
     with connection.cursor() as cursor:
         cursor.executemany(
             """
-            INSERT INTO nrod_association (
+            INSERT INTO nrod.association (
                 main_train_uid,
                 assoc_train_uid,
                 assoc_start_date,
@@ -366,7 +366,7 @@ def delete_associations(connection, associations):
         for a in associations:
             cursor.execute(
                 """
-                DELETE FROM nrod_association
+                DELETE FROM nrod.association
                 WHERE main_train_uid = %s AND assoc_train_uid = %s AND
                 assoc_start_date = %s AND location = %s AND stp_indicator = %s;
             """,
@@ -402,7 +402,7 @@ def insert_schedules(connection, schedules):
     with connection.cursor() as cursor:
         cursor.executemany(
             """
-            INSERT INTO nrod_schedule (
+            INSERT INTO nrod.schedule (
                 is_vstp,
                 train_uid,
                 schedule_start_date,
@@ -478,7 +478,7 @@ def delete_schedules(connection, schedules):
         for s in schedules:
             cursor.execute(
                 """
-                DELETE FROM nrod_schedule
+                DELETE FROM nrod.schedule
                 WHERE is_vstp = FALSE AND train_uid = %(train_uid)s AND
                 schedule_start_date = %(schedule_start_date)s AND
                 stp_indicator = %(stp_indicator)s;
@@ -500,7 +500,7 @@ def delete_old_schedules(connection, date):
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            DELETE FROM nrod_schedule WHERE is_vstp IS FALSE AND
+            DELETE FROM nrod.schedule WHERE is_vstp IS FALSE AND
             schedule_end_date < %s::date - INTERVAL '1 day';
         """,
             (date,),
@@ -512,7 +512,7 @@ def insert_schedule_locations(connection, locations):
     with connection.cursor() as cursor:
         cursor.executemany(
             """
-            INSERT INTO nrod_schedule_location (
+            INSERT INTO nrod.schedule_location (
                 schedule_id,
                 position,
                 tiploc_code,
@@ -558,7 +558,7 @@ def insert_changes_en_route(connection, changes):
     with connection.cursor() as cursor:
         cursor.executemany(
             """
-            INSERT INTO nrod_changes_en_route (
+            INSERT INTO nrod.changes_en_route (
                 schedule_id,
                 tiploc_code,
                 tiploc_instance,
