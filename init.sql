@@ -1,5 +1,7 @@
+CREATE SCHEMA IF NOT EXISTS nrod;
+
 -- T Records (Timing Point Location)
-CREATE TABLE nrod_tiploc (
+CREATE TABLE IF NOT EXISTS nrod.tiploc (
     tiploc_code                 text PRIMARY KEY,
     nalco                       int,
     check_char                  text,
@@ -10,7 +12,7 @@ CREATE TABLE nrod_tiploc (
 );
 
 -- AA Records (Association)
-CREATE TABLE nrod_association (
+CREATE TABLE IF NOT EXISTS nrod.association (
     id                          integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     main_train_uid              text not null,
     assoc_train_uid             text not null,
@@ -27,10 +29,10 @@ CREATE TABLE nrod_association (
     stp_indicator               text not null
 );
 
-CREATE UNIQUE INDEX nrod_association_ux ON nrod_association (main_train_uid, assoc_train_uid, assoc_start_date, diagram_type, location, base_location_suffix, assoc_location_suffix, stp_indicator);
+CREATE UNIQUE INDEX IF NOT EXISTS ON nrod.association (main_train_uid, assoc_train_uid, assoc_start_date, diagram_type, location, base_location_suffix, assoc_location_suffix, stp_indicator);
 
 -- BS/BX Records (Schedule)
-CREATE TABLE nrod_schedule (
+CREATE TABLE IF NOT EXISTS nrod.schedule (
     id                          integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     is_vstp                     boolean not null DEFAULT FALSE,
     train_uid                   text not null,
@@ -57,11 +59,11 @@ CREATE TABLE nrod_schedule (
     last_modified               timestamptz
 );
 
-CREATE UNIQUE INDEX nrod_schedule_ux ON nrod_schedule (train_uid, schedule_start_date, stp_indicator, is_vstp);
+CREATE UNIQUE INDEX IF NOT EXISTS ON nrod.schedule (train_uid, schedule_start_date, stp_indicator, is_vstp);
 
 -- LO/LI/LT Records (Location)
-CREATE TABLE nrod_schedule_location (
-    schedule_id                 integer REFERENCES nrod_schedule (id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS nrod.schedule_location (
+    schedule_id                 integer REFERENCES nrod.schedule (id) ON DELETE CASCADE,
     position                    smallint,
     tiploc_code                 text not null,
     tiploc_instance             smallint,
@@ -82,8 +84,8 @@ CREATE TABLE nrod_schedule_location (
 );
 
 -- CR Record (Changes En Route)
-CREATE TABLE nrod_changes_en_route (
-    schedule_id                 integer REFERENCES nrod_schedule (id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS nrod.changes_en_route (
+    schedule_id                 integer REFERENCES nrod.schedule (id) ON DELETE CASCADE,
     tiploc_code                 text not null,
     tiploc_instance             smallint,
     train_category              text,
@@ -101,4 +103,4 @@ CREATE TABLE nrod_changes_en_route (
     uic_code                    text
 );
 
-CREATE INDEX nrod_changes_en_route_ix ON nrod_changes_en_route (schedule_id);
+CREATE INDEX IF NOT EXISTS ON nrod.changes_en_route (schedule_id);
