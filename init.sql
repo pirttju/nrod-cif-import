@@ -1,5 +1,18 @@
 CREATE SCHEMA IF NOT EXISTS nrod;
 
+-- File headers
+CREATE TABLE IF NOT EXISTS nrod.header (
+    file_mainframe_identity     text,
+    date_of_extract             date,
+    time_of_extract             time without time zone,
+    current_file_reference      text,
+    last_file_reference         text,
+    update_indicator            text,
+    user_start_date             date,
+    user_end_date               date,
+    statistics                  jsonb
+);
+
 -- T Records (Timing Point Location)
 CREATE TABLE IF NOT EXISTS nrod.tiploc (
     tiploc_code                 text PRIMARY KEY,
