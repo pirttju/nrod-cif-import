@@ -26,10 +26,9 @@ CREATE TABLE IF NOT EXISTS nrod.association (
     assoc_location_suffix       smallint,
     diagram_type                text not null DEFAULT 'T',
     association_type            text,
-    stp_indicator               text not null
+    stp_indicator               text not null,
+    UNIQUE (main_train_uid, assoc_train_uid, assoc_start_date, diagram_type, location, base_location_suffix, assoc_location_suffix, stp_indicator)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS nrod.association_ux ON nrod.association (main_train_uid, assoc_train_uid, assoc_start_date, diagram_type, location, base_location_suffix, assoc_location_suffix, stp_indicator);
 
 -- BS/BX Records (Schedule)
 CREATE TABLE IF NOT EXISTS nrod.schedule (
@@ -56,10 +55,9 @@ CREATE TABLE IF NOT EXISTS nrod.schedule (
     uic_code                    text,
     atoc_code                   text,
     applicable_timetable        boolean,
-    last_modified               timestamptz
+    last_modified               timestamptz,
+    UNIQUE (train_uid, schedule_start_date, stp_indicator, is_vstp)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS nrod.schedule_ux ON nrod.schedule (train_uid, schedule_start_date, stp_indicator, is_vstp);
 
 -- LO/LI/LT Records (Location)
 CREATE TABLE IF NOT EXISTS nrod.schedule_location (
@@ -103,4 +101,4 @@ CREATE TABLE IF NOT EXISTS nrod.changes_en_route (
     uic_code                    text
 );
 
-CREATE INDEX IF NOT EXISTS nrod.changes_en_route_ix ON nrod.changes_en_route (schedule_id);
+CREATE INDEX ON nrod.changes_en_route (schedule_id);
