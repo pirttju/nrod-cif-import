@@ -66,13 +66,17 @@ def date_fmt(in_date, reverse=False):
 
 def time_fmt(in_time):
     try:
-        hours = int(in_time[0:2])
-        mins = int(in_time[2:4])
-        seconds = 0
-        if len(in_time) == 5:
-            if in_time[4:] == "H":
-                seconds = 30
-        return time(hours, mins, seconds).strftime("%H:%M:%S")
+        # time 0000 is null in the mainframe
+        if in_time == "0000":
+            return None
+        else:
+            hours = int(in_time[0:2])
+            mins = int(in_time[2:4])
+            seconds = 0
+            if len(in_time) == 5:
+                if in_time[4:] == "H":
+                    seconds = 30
+            return time(hours, mins, seconds).strftime("%H:%M:%S")
     except:
         return None
 
