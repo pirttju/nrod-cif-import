@@ -9,6 +9,8 @@ import sys
 import psycopg
 
 # Helper Functions
+
+
 def blocks(files, size=65536):
     while True:
         b = files.read(size)
@@ -66,13 +68,17 @@ def date_fmt(in_date, reverse=False):
 
 def time_fmt(in_time):
     try:
-        hours = int(in_time[0:2])
-        mins = int(in_time[2:4])
-        seconds = 0
-        if len(in_time) == 5:
-            if in_time[4:] == "H":
-                seconds = 30
-        return time(hours, mins, seconds).strftime("%H:%M:%S")
+        # time 0000 is null in the mainframe
+        if in_time == "0000":
+            return None
+        else:
+            hours = int(in_time[0:2])
+            mins = int(in_time[2:4])
+            seconds = 0
+            if len(in_time) == 5:
+                if in_time[4:] == "H":
+                    seconds = 30
+            return time(hours, mins, seconds).strftime("%H:%M:%S")
     except:
         return None
 
@@ -191,7 +197,7 @@ class OriginLocation:
         self.public_arrival = None
         self.path = None
         self.arrival_day = None
-        self.departure_day = 0
+        self.departure_day = None
 
 
 class IntermediateLocation:
@@ -209,8 +215,8 @@ class IntermediateLocation:
         self.engineering_allowance = str_fmt(raw[54:56])
         self.pathing_allowance = str_fmt(raw[56:58])
         self.performance_allowance = str_fmt(raw[58:60])
-        self.arrival_day = 0
-        self.departure_day = 0
+        self.arrival_day = None
+        self.departure_day = None
 
 
 class TerminatingLocation:
@@ -228,7 +234,7 @@ class TerminatingLocation:
         self.engineering_allowance = None
         self.pathing_allowance = None
         self.performance_allowance = None
-        self.arrival_day = 0
+        self.arrival_day = None
         self.departure_day = None
 
 
@@ -319,9 +325,11 @@ def insert_tiplocs(connection, data):
 def delete_tiplocs(connection, data):
     with connection.cursor() as cursor:
         for d in data:
-            cursor.execute("DELETE FROM nrod.tiploc WHERE tiploc_code = %(tiploc_code)s;", d)
+            cursor.execute(
+                "DELETE FROM nrod.tiploc WHERE tiploc_code = %(tiploc_code)s;", d)
             if cursor.rowcount == 0:
-                print("Tiploc Delete ({0}) affected 0 rows".format(d["tiploc_code"]))
+                print("Tiploc Delete ({0}) affected 0 rows".format(
+                    d["tiploc_code"]))
 
 
 def insert_associations(connection, data):
@@ -466,7 +474,8 @@ def insert_schedules(connection, schedules):
         locations = []
         changes = []
         for s, id in zip(schedules, returning):
-            locations.extend([{**d, "schedule_id": id, "position": pos} for pos, d in enumerate(s["locations"])])
+            locations.extend([{**d, "schedule_id": id, "position": pos}
+                             for pos, d in enumerate(s["locations"])])
             changes.extend([{**d, "schedule_id": id} for d in s["changes"]])
         # Insert locations/changes
         insert_schedule_locations(connection, locations)
@@ -505,7 +514,8 @@ def delete_old_schedules(connection, date):
         """,
             (date,),
         )
-        print("Deleted {0} schedules that have become historic".format(cursor.rowcount))
+        print("Deleted {0} schedules that have become historic".format(
+            cursor.rowcount))
 
 
 def insert_schedule_locations(connection, locations):
@@ -609,11 +619,13 @@ def parse(f, connection):
     f.seek(0)
     hd = Header(f.readline())
     print("File mainframe id: {0}".format(hd.file_mainframe_identity))
-    print("Time of extract: {0} {1}".format(hd.date_of_extract, hd.time_of_extract))
+    print("Time of extract: {0} {1}".format(
+        hd.date_of_extract, hd.time_of_extract))
     print("Current file ref.: {0}".format(hd.current_file_reference))
     print("Last file ref.: {0}".format(hd.last_file_reference))
     print("Update indicator: {0}".format(hd.update_indicator))
-    print("User time window: {0} - {1}\n".format(hd.user_start_date, hd.user_end_date))
+    print(
+        "User time window: {0} - {1}\n".format(hd.user_start_date, hd.user_end_date))
 
     # Delete schedules ending before the time window
     delete_old_schedules(connection, hd.user_start_date)
@@ -621,7 +633,8 @@ def parse(f, connection):
     # Continuity check
     last_ref = select_last_ref(connection)
     if last_ref != None and last_ref != hd.last_file_reference:
-        print("Continuity error: last file ref did not match {0} in the database".format(last_ref))
+        print("Continuity error: last file ref did not match {0} in the database".format(
+            last_ref))
         sys.exit(1)
 
     # Use time the schedules were extracted on
@@ -635,8 +648,10 @@ def parse(f, connection):
     cache_schedule_insert = []
     cache_schedule_delete = []
 
-    bs = None
-    last_li = None
+    bs = None  # Basic Schedule
+
+    current_day = 0  # Current Day Num
+    last_processed_time = None  # Cache Last Time
 
     counter = Counter()
 
@@ -712,8 +727,10 @@ def parse(f, connection):
             lo = OriginLocation(line)
             # Add location
             bs.add_location(lo)
-            # Set as previous location
-            last_li = lo
+            # It is day 0
+            lo.departure_day = 0
+            # Set departure as previous time
+            last_processed_time = lo.departure
 
         elif record == "LI":  # Location Intermediate
             counter.update(LI=1)
@@ -721,20 +738,20 @@ def parse(f, connection):
                 print("Logical error in CIF Schedule file!")
                 exit(1)
             li = IntermediateLocation(line)
-            # Populate overnight running days
-            li.arrival_day = last_li.arrival_day if last_li.arrival_day != None else 0
-            li.departure_day = last_li.departure_day if last_li.departure_day != None else 0
-            if last_li != None:
-                if li.arrival != None and li.arrival < last_li.departure:
-                    li.arrival_day += 1
-                if li.departure < last_li.departure:
-                    li.departure_day += 1
-                    if li.arrival is None:
-                        li.arrival_day += 1
+            # Process arrival time
+            if li.arrival:
+                if last_processed_time is not None and li.arrival < last_processed_time:
+                    current_day += 1
+                li.arrival_day = current_day
+                last_processed_time = li.arrival
+            # Process departure time
+            if li.departure:
+                if last_processed_time is not None and li.departure < last_processed_time:
+                    current_day += 1
+                li.departure_day = current_day
+                last_processed_time = li.departure
             # Add location
             bs.add_location(li)
-            # Set as previous location
-            last_li = li
 
         elif record == "LT":  # Location Terminus (Closes a Schedule)
             counter.update(LT=1)
@@ -742,18 +759,20 @@ def parse(f, connection):
                 print("Logical error in CIF Schedule file!")
                 exit(1)
             lt = TerminatingLocation(line)
-            # Populate overnight running days
-            lt.arrival_day = last_li.arrival_day if last_li.arrival_day != None else 0
-            if last_li != None:
-                if lt.arrival != None and lt.arrival < last_li.departure:
-                    lt.arrival_day += 1
+            # Process arrival time
+            if lt.arrival:
+                if last_processed_time is not None and lt.arrival < last_processed_time:
+                    current_day += 1
+                lt.arrival_day = current_day
+                last_processed_time = lt.arrival
             # Add location
             bs.add_location(lt)
             # Append closed schedule to cache
             cache_schedule_insert.append(vars(bs))
             # Clear cached values
             bs = None
-            last_li = None
+            last_processed_time = None
+            current_day = 0  # Important!
 
         elif record == "CR":  # Change en route
             counter.update(CR=1)
@@ -804,17 +823,20 @@ def parse(f, connection):
         # Update progress
         pbar.update()
 
-    stats = json.dumps([{"record": key, "value": value} for key, value in counter.items()])
+    stats = json.dumps([{"record": key, "value": value}
+                       for key, value in counter.items()])
     insert_header(connection, {**vars(hd), **{"statistics": stats}})
     pbar.close()
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="cifimport", description="CIF Schedule Import Tool", conflict_handler="resolve")
+    ap = argparse.ArgumentParser(
+        prog="cifimport", description="CIF Schedule Import Tool", conflict_handler="resolve")
     ap.add_argument("filename", help="read data from the file filename")
 
     # Postgres related arguments
-    ap.add_argument("-d", "--dbname", required=True, help="specifies the name of the database to connect to")
+    ap.add_argument("-d", "--dbname", required=True,
+                    help="specifies the name of the database to connect to")
     ap.add_argument(
         "-h",
         "--host",
@@ -825,7 +847,8 @@ def main():
     ap.add_argument(
         "-p", "--port", default=5432, required=False, help="specifies the port on which the server is listening"
     )
-    ap.add_argument("-U", "--username", required=True, help="connect to the database as the username")
+    ap.add_argument("-U", "--username", required=True,
+                    help="connect to the database as the username")
     ap.add_argument(
         "-W",
         "--password",
@@ -839,7 +862,8 @@ def main():
         action="store_true",
         help="initialises the database (TRUNCATES ALL TABLES!)",
     )
-    ap.add_argument("-t", required=False, action="store_true", help="test only without committing")
+    ap.add_argument("-t", required=False, action="store_true",
+                    help="test only without committing")
     args = ap.parse_args()
 
     # Check if the file exists
@@ -874,7 +898,8 @@ def main():
             first_line = f.readline()
 
             if first_line.startswith("HD") != True:
-                print("Error: {0} is not a CIF Schedule file!".format(args.filename))
+                print("Error: {0} is not a CIF Schedule file!".format(
+                    args.filename))
                 sys.exit(1)
 
             parse(f, connection)
