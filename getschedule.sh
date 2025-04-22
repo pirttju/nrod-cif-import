@@ -2,8 +2,8 @@
 set -e
 
 # Settings
-user=
-pass=
+user="juhani.pirttilahti@gmail.com"
+pass="R4nt4tunn3l1!"
 protocol="https"
 hostname="publicdatafeeds.networkrail.co.uk"
 endpoint="/ntrod/CifFileAuthenticate"
