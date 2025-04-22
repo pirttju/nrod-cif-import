@@ -1,3 +1,6 @@
+# Network Rail CIF Schedule Files
+*.cif
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
